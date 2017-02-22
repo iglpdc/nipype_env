@@ -9,12 +9,49 @@
 FROM miykael/nipype_level0
 MAINTAINER Michael Notter <michaelnotter@hotmail.com>
 
+#-------------------
+# Install MATLAB MCR
+#-------------------
+USER root
+RUN mkdir -p /opt/mcr_install /opt/mcr
+ENV MATLAB_VERSION R2016b
+RUN wget -P /opt/mcr_install https://www.mathworks.com/supportfiles/downloads/R2016b/deployment_files/R2016b/installers/glnxa64/MCR_R2016b_glnxa64_installer.zip
+RUN unzip -q /opt/mcr_install/MCR_${MATLAB_VERSION}_glnxa64_installer.zip -d /opt/mcr_install
+RUN /opt/mcr_install/install -destinationFolder /opt/mcr -agreeToLicense yes -mode silent
+RUN rm -rf /opt/mcr_install && \
+    rm /opt/mcr/v91/sys/os/glnxa64/libstdc++.so.6 && \
+    ln /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.20 /opt/mcr/v91/sys/os/glnxa64/libstdc++.so.6
+
+# Configure environment
+ENV MCR_VERSION v91
+ENV LD_LIBRARY_PATH /opt/mcr/${MCR_VERSION}/runtime/glnxa64:/opt/mcr/${MCR_VERSION}/bin/glnxa64:/opt/mcr/${MCR_VERSION}/sys/os/glnxa64:/opt/mcr/${MCR_VERSION}/sys/opengl/lib/glnxa64:$LD_LIBRARY_PATH
+ENV MCR_INHIBIT_CTF_LOCK 1
+RUN export LD_LIBRARY_PATH
+ENV PATH=/opt/mcr/v91/bin:$PATH \
+    MATLABCMD=/opt/mcr/v91/bin/glnxa64/MATLABWindow
+
+#--------------------------------------
+# Install SPM Standalone
+#--------------------------------------
+USER root
+ENV SPM_VERSION=12 \
+    SPM_REVISION=r6906
+ENV SPM_DIR /opt/spm${SPM_VERSION}
+ENV SPM_EXEC=${SPM_DIR}/spm${SPM_VERSION}
+RUN wget -P /opt http://www.fil.ion.ucl.ac.uk/spm/download/restricted/bids/spm${SPM_VERSION}_${SPM_REVISION}_Linux_${MATLAB_VERSION}.zip && \
+    unzip -q /opt/spm${SPM_VERSION}_${SPM_REVISION}_Linux_${MATLAB_VERSION}.zip -d /opt && \
+    rm -f /opt/spm${SPM_VERSION}_${SPM_REVISION}_Linux_${MATLAB_VERSION}.zip
+RUN ${SPM_EXEC} function exit
+
+ENV SPMMCRCMD='/opt/spm12/run_spm12.sh /opt/mcr/v91/ script' \
+    FORCE_SPMMCR=1
+
 #---------------------
 # Install FSL and ANFI
 #---------------------
 USER root
 RUN apt-get update && \
-    apt-get install -y -qq --no-install-recommends fsl-core fsl-atlases afni
+    apt-get install -y -qq --no-install-recommends fsl-core fsl-atlases
 ENV FSLDIR=/usr/share/fsl/5.0 \
     FSLOUTPUTTYPE=NIFTI_GZ \
     FSLMULTIFILEQUIT=TRUE \
@@ -22,11 +59,7 @@ ENV FSLDIR=/usr/share/fsl/5.0 \
     LD_LIBRARY_PATH=/usr/lib/fsl/5.0:$LD_LIBRARY_PATH \
     FSLTCLSH=/usr/bin/tclsh \
     FSLWISH=/usr/bin/wish \
-    AFNI_MODELPATH=/usr/lib/afni/models \
-    AFNI_IMSAVE_WARNINGS=NO \
-    AFNI_TTATLAS_DATASET=/usr/share/afni/atlases \
-    AFNI_PLUGINPATH=/usr/lib/afni/plugins \
-    PATH=/usr/lib/fsl/5.0:/usr/lib/afni/bin:$PATH
+    PATH=/usr/lib/fsl/5.0:$PATH
 
 #----------------------------------------
 # Clear apt cache and other empty folders
@@ -34,3 +67,49 @@ ENV FSLDIR=/usr/share/fsl/5.0 \
 USER root
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /boot /media /mnt /srv
+
+#---------------------------
+# Install FreeSurfer (v.6.0)
+#---------------------------
+#USER root
+#RUN curl -sSL https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/6.0.0/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.0.tar.gz | tar zxv -C /opt \
+#    --exclude='freesurfer/trctrain' \
+#    --exclude='freesurfer/subjects/fsaverage_sym' \
+#    --exclude='freesurfer/subjects/fsaverage3' \
+#    --exclude='freesurfer/subjects/fsaverage4' \
+#    --exclude='freesurfer/subjects/fsaverage5' \
+#    --exclude='freesurfer/subjects/fsaverage6' \
+#    --exclude='freesurfer/subjects/cvs_avg35' \
+#    --exclude='freesurfer/subjects/cvs_avg35_inMNI152' \
+#    --exclude='freesurfer/subjects/bert' \
+#    --exclude='freesurfer/subjects/V1_average' \
+#    --exclude='freesurfer/average/mult-comp-cor' \
+#    --exclude='freesurfer/lib/cuda' \
+#    --exclude='freesurfer/lib/qt'
+#
+#ENV FSL_DIR=/usr/share/fsl/5.0 \
+#    OS=Linux \
+#    FS_OVERRIDE=0 \
+#    FIX_VERTEX_AREA= \
+#    FSF_OUTPUT_FORMAT=nii.gz \
+#    FREESURFER_HOME=/opt/freesurfer
+#ENV SUBJECTS_DIR=$FREESURFER_HOME/subjects \
+#    FUNCTIONALS_DIR=$FREESURFER_HOME/sessions \
+#    MNI_DIR=$FREESURFER_HOME/mni \
+#    LOCAL_DIR=$FREESURFER_HOME/local \
+#    FSFAST_HOME=$FREESURFER_HOME/fsfast \
+#    MINC_BIN_DIR=$FREESURFER_HOME/mni/bin \
+#    MINC_LIB_DIR=$FREESURFER_HOME/mni/lib \
+#    MNI_DATAPATH=$FREESURFER_HOME/mni/data \
+#    FMRI_ANALYSIS_DIR=$FREESURFER_HOME/fsfast
+#ENV PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
+#    MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
+#    PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
+#RUN echo "cHJpbnRmICJtaWNoYWVsbm90dGVyQGhvdG1haWwuY29tXG4xNDY4NVxuICpDNG9aVTJpclRmUGNcbiBGU1ByejhxQ0NXNWE2XG4iID4gL29wdC9mcmVlc3VyZmVyL2xpY2Vuc2UudHh0Cg==" | base64 -d | sh
+#
+##----------------------------------------
+## Clear apt cache and other empty folders
+##----------------------------------------
+#USER root
+#RUN apt-get clean && \
+#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /boot /media /mnt /srv
