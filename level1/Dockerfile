@@ -34,7 +34,6 @@ RUN export LD_LIBRARY_PATH
 #--------------------------------------
 # Install SPM Standalone
 #--------------------------------------
-USER root
 ENV SPM_VERSION=12 \
     SPM_REVISION=r6906
 ENV SPM_DIR /opt/spm${SPM_VERSION}
@@ -46,11 +45,13 @@ RUN ${SPM_EXEC} function exit
 
 ENV SPMMCRCMD='/opt/spm12/run_spm12.sh /opt/mcr/v91/ script' \
     FORCE_SPMMCR=1
+RUN chmod 755 /opt/spm12/run_spm12.sh
+RUN chmod 755 ${SPM_EXEC}
+RUN chown -R jovyan:users /home/jovyan/.matlab
 
 #---------------------
 # Install FSL and ANFI
 #---------------------
-USER root
 RUN apt-get update && \
     apt-get install -y -qq --no-install-recommends fsl-core fsl-atlases
 ENV FSLDIR=/usr/share/fsl/5.0 \
@@ -61,13 +62,6 @@ ENV FSLDIR=/usr/share/fsl/5.0 \
     FSLTCLSH=/usr/bin/tclsh \
     FSLWISH=/usr/bin/wish \
     PATH=/usr/lib/fsl/5.0:$PATH
-
-#----------------------------------------
-# Clear apt cache and other empty folders
-#----------------------------------------
-USER root
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /boot /media /mnt /srv
 
 #---------------------------
 # Install FreeSurfer (v.6.0)
@@ -107,10 +101,9 @@ RUN apt-get clean && \
 #    MNI_PERL5LIB=$MINC_LIB_DIR/perl5/5.8.5 \
 #    PATH=$FREESURFER_HOME/bin:$FSFAST_HOME/bin:$FREESURFER_HOME/tktools:$MINC_BIN_DIR:$PATH
 #RUN echo "cHJpbnRmICJtaWNoYWVsbm90dGVyQGhvdG1haWwuY29tXG4xNDY4NVxuICpDNG9aVTJpclRmUGNcbiBGU1ByejhxQ0NXNWE2XG4iID4gL29wdC9mcmVlc3VyZmVyL2xpY2Vuc2UudHh0Cg==" | base64 -d | sh
-#
-##----------------------------------------
-## Clear apt cache and other empty folders
-##----------------------------------------
-#USER root
-#RUN apt-get clean && \
-#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /boot /media /mnt /srv
+
+#----------------------------------------
+# Clear apt cache and other empty folders
+#----------------------------------------
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /boot /media /mnt /srv
