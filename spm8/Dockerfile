@@ -35,6 +35,8 @@ RUN wget -P /opt http://www.fil.ion.ucl.ac.uk/spm/download/restricted/utopia/spm
     unzip -q /opt/spm${SPM_VERSION}_${SPM_REVISION}.zip -d /opt && \
     rm -f /opt/spm${SPM_VERSION}_${SPM_REVISION}.zip
 RUN ${SPM_DIR}/run_spm8.sh /opt/mcr/v713 quit
+# TODO You should remove spm8_mac*, spm*_win*, spm8_glnx*, and prolly spm8.cft from ${SPM_DIR}
+# RUN rm ${SPM_DIR}/spm8_mac* ${SPM_DIR}/spm8_win* ${SPM_DIR}/spm8_glnx* ${SPM_DIR}/spm8.cft
 
 ENV SPMMCRCMD="/opt/spm8/run_spm8.sh /opt/mcr/v713/ script" \ 
     FORCE_SPMMCR=1
